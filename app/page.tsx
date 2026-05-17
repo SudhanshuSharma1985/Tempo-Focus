@@ -7,6 +7,7 @@ const START_HOUR = 6;
 const END_HOUR = 23;
 const SLOT_COUNT = END_HOUR - START_HOUR;
 const STORAGE_KEY = "tempo-focus-state-v1";
+const QUOTE_KEY = "tempo-daily-quote";
 const APP_VERSION = "20260505-meals1";
 const DEFAULT_THRESHOLD = 3;
 
@@ -386,6 +387,7 @@ export default function Home() {
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [coachStatus, setCoachStatus] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hourRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -408,6 +410,24 @@ export default function Home() {
   useEffect(() => {
     if (ready) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [ready, state]);
+
+  useEffect(() => {
+    const today = dateKey();
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(QUOTE_KEY) || "null");
+      if (stored?.date === today && stored?.quote) { setDailyQuote(stored); return; }
+    } catch {}
+    fetch(`/api/quote?date=${today}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.quote) {
+          const q = { date: today, quote: data.quote, author: data.author || "" };
+          window.localStorage.setItem(QUOTE_KEY, JSON.stringify(q));
+          setDailyQuote(q);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const selectedLogs = useMemo(() => state.logs[state.selectedDate] || {}, [state.logs, state.selectedDate]);
   const selectedWeek = weekKey(state.selectedDate);
@@ -632,7 +652,7 @@ export default function Home() {
             onChange={(event) => setLoginEmail(event.target.value)}
           />
           <button type="submit">Continue</button>
-          <span aria-live="polite" className={styles.status}>{authMessage}</span>
+          <span aria-live="polite">{authMessage}</span>
         </form>
       </main>
     );
@@ -663,14 +683,15 @@ export default function Home() {
 
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.heroKicker}>Local-first time tracking</p>
-          <h1>Everything you want to focus on, done.</h1>
-          <p>Mail-app speed meets a daily focus command center. Log every hour, protect your best blocks, and let the coach pull the next move into view.</p>
+          <p className={styles.heroKicker}>Track your hours. Cut the distractions</p>
+          <h1>{dailyQuote ? `"${dailyQuote.quote}"` : "Everything you want to focus on, done."}</h1>
+          {dailyQuote?.author && <p className={styles.quoteAuthor}>— {dailyQuote.author}</p>}
           <div className={styles.heroControls}>
             <input aria-label="Selected date" type="date" value={state.selectedDate} onChange={(event) => changeDate(event.target.value)} />
             <button type="button" onClick={jumpToCurrent}>Jump to current</button>
             <button type="button" onClick={testReminder}>Test reminder</button>
           </div>
+          {notificationMessage && <p className={styles.reminderStatus} aria-live="polite">{notificationMessage}</p>}
         </div>
         <div className={styles.heroStats}>
           <span>{stats.logged}/{SLOT_COUNT}<small>Logged</small></span>
@@ -700,12 +721,17 @@ export default function Home() {
           </div>
           <div className={styles.aiPrompt}>
             <span>Would you like me to plan your next focus block?</span>
-            <button type="button" onClick={requestCoach}>yes!</button>
+            <button type="button" onClick={requestCoach}>AI Coach</button>
           </div>
           <div className={styles.coachOutput}>
             {advice ? (
               <>
                 <p>{advice.summary}</p>
+                {advice.suggestions.length > 0 && (
+                  <ul className={styles.coachSuggestions}>
+                    {advice.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                  </ul>
+                )}
                 <strong>{advice.nextBlock}</strong>
               </>
             ) : (
@@ -715,20 +741,6 @@ export default function Home() {
         </aside>
 
         <section className={styles.mailCard}>
-          <header>
-            <div>
-              <p>Important {stats.focusHours}</p>
-              <p>Calendar {stats.logged}</p>
-              <p>Other {Math.max(0, SLOT_COUNT - stats.logged)}</p>
-            </div>
-            <select
-              aria-label="Waste hour threshold"
-              value={state.settings.focusThreshold}
-              onChange={(event) => mutate((current) => ({ ...current, settings: { ...current.settings, focusThreshold: Number(event.target.value) } }))}
-            >
-              {Array.from({ length: SLOT_COUNT }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} reset hours</option>)}
-            </select>
-          </header>
 
           <div className={styles.messageList}>
             {Array.from({ length: SLOT_COUNT }, (_, index) => START_HOUR + index).map((hour) => {
@@ -739,7 +751,7 @@ export default function Home() {
               return (
                 <article
                   ref={(node) => { hourRefs.current[String(hour)] = node; }}
-                  className={`${styles.messageRow} ${now ? styles.now : ""} ${isFocus(log) ? styles.focus : ""} ${isWaste(log) ? styles.waste : ""}`}
+                  className={`${styles.messageRow} ${now ? styles.now : ""} ${isLogged(log) ? styles.logged : styles.unlogged} ${isFocus(log) ? styles.focus : ""} ${isWaste(log) ? styles.waste : ""}`}
                   key={hour}
                   style={{ "--cat": categories[log.category].color } as CSSProperties}
                 >
@@ -805,7 +817,6 @@ export default function Home() {
         </aside>
       </section>
 
-      {notificationMessage && <p className={styles.status} aria-live="polite">{notificationMessage}</p>}
     </main>
   );
 }

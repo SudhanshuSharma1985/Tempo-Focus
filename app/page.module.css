@@ -176,12 +176,27 @@
   text-transform: uppercase;
 }
 
+.reminderStatus {
+  margin: 8px 0 0;
+  color: #b7e6d3;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .hero h1 {
   margin: 0;
   max-width: 840px;
   color: #fff8ea;
-  font-size: clamp(3.4rem, 8vw, 7.4rem);
-  line-height: 0.88;
+  font-size: clamp(1.8rem, 3.2vw, 2.8rem);
+  line-height: 1.15;
+}
+
+.quoteAuthor {
+  margin: 8px 0 0;
+  color: rgb(255 248 234 / 60%);
+  font-size: 1rem;
+  font-weight: 700;
+  font-style: italic;
 }
 
 .heroCopy > p:not(.heroKicker) {
@@ -347,6 +362,16 @@
   line-height: 1.35;
 }
 
+.coachSuggestions {
+  margin: 10px 0 0;
+  padding: 0 0 0 16px;
+  display: grid;
+  gap: 6px;
+  color: #6f6558;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .mailCard {
   overflow: hidden;
   background: #fffdf8;
@@ -455,12 +480,20 @@
   accent-color: #17130f;
 }
 
+.messageRow.logged {
+  background: #edfbf0;
+}
+
+.messageRow.unlogged {
+  background: #fff0f0;
+}
+
 .messageRow.focus {
-  background: #f2fbef;
+  background: #d4f5e0;
 }
 
 .messageRow.waste {
-  background: #fff0e8;
+  background: #ffe0d8;
 }
 
 .messageRow.now {

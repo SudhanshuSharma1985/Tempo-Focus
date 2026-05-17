@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 
 type Advice = {
   summary: string;
@@ -74,53 +75,41 @@ function localAdvice(payload: CoachPayload): Advice {
   });
 }
 
+const SYSTEM_PROMPT = `You are a practical daily focus coach embedded in a time-tracking app.
+The user sends you their daily stats, priority list, and hourly activity log.
+Return ONLY valid JSON with exactly these fields:
+  "summary": one sentence (max 220 chars) describing today's pattern
+  "suggestions": array of 3–4 actionable strings (max 220 chars each) for the next block
+  "nextBlock": one sentence (max 260 chars) naming the single most important action right now
+Be practical, kind, and never shame the user. Focus on what they can do in the next hour.`;
+
 async function requestOpenAiAdvice(payload: CoachPayload): Promise<Advice> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured.");
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
-  try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5.2",
-        input: [
-          {
-            role: "system",
-            content: "Return compact JSON only with summary, suggestions array, and nextBlock. Be practical and never shame the user.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              date: payload.date,
-              stats: payload.stats,
-              dayPriorities: payload.dayPriorities,
-              weekPriorities: payload.weekPriorities,
-              logs: (payload.logs || []).slice(0, 24),
-              threshold: payload.threshold,
-            }),
-          },
-        ],
-      }),
-    });
+  const client = new OpenAI({ apiKey });
 
-    if (!response.ok) throw new Error(`OpenAI returned ${response.status}.`);
-    const data = await response.json();
-    const text = typeof data.output_text === "string"
-      ? data.output_text
-      : Array.isArray(data.output)
-        ? data.output.flatMap((item: { content?: Array<{ text?: string }> }) => item.content || []).map((item: { text?: string }) => item.text || "").join("")
-        : "";
-    return normalizeAdvice(JSON.parse(text));
-  } finally {
-    clearTimeout(timeout);
-  }
+  const completion = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-4o",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: JSON.stringify({
+          date: payload.date,
+          stats: payload.stats,
+          dayPriorities: payload.dayPriorities,
+          weekPriorities: payload.weekPriorities,
+          logs: (payload.logs || []).slice(0, 24),
+          threshold: payload.threshold,
+        }),
+      },
+    ],
+  });
+
+  const text = completion.choices[0]?.message?.content || "";
+  return normalizeAdvice(JSON.parse(text));
 }
 
 export async function POST(request: NextRequest) {
