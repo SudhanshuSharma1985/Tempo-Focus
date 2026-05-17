@@ -390,6 +390,7 @@ export default function Home() {
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hourRefs = useRef<Record<string, HTMLElement | null>>({});
+  const lastNotifiedRef = useRef<string>("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -428,6 +429,39 @@ export default function Home() {
       })
       .catch(() => undefined);
   }, []);
+
+  // Sync the last-notified ref with persisted state once localStorage is loaded
+  useEffect(() => {
+    if (ready) lastNotifiedRef.current = state.lastReminderKey;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  // Hourly notification: checks every 30s, fires once per hour in the first 2 minutes
+  useEffect(() => {
+    if (!state.auth.loggedIn || !state.settings.reminders) return;
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") Notification.requestPermission();
+
+    const check = () => {
+      if (Notification.permission !== "granted") return;
+      const now = new Date();
+      if (now.getMinutes() > 2) return;
+      const h = now.getHours();
+      if (h < START_HOUR || h >= END_HOUR) return;
+      const key = `${dateKey()}-${h}`;
+      if (lastNotifiedRef.current === key) return;
+      lastNotifiedRef.current = key;
+      mutate((s) => ({ ...s, lastReminderKey: key }));
+      new Notification("TempoFocus — log this hour", {
+        body: `${String(h).padStart(2, "0")}:00 — what did you do in the last block?`,
+        icon: "/icon-192.png",
+      });
+    };
+
+    check();
+    const interval = window.setInterval(check, 30_000);
+    return () => window.clearInterval(interval);
+  }, [state.auth.loggedIn, state.settings.reminders]);
 
   const selectedLogs = useMemo(() => state.logs[state.selectedDate] || {}, [state.logs, state.selectedDate]);
   const selectedWeek = weekKey(state.selectedDate);
@@ -800,7 +834,11 @@ export default function Home() {
         <aside className={styles.docCard}>
           <div className={styles.docHeader}>
             <span>Team workspace</span>
-            <button type="button" onClick={() => mutate((current) => ({ ...current, settings: { ...current.settings, reminders: !current.settings.reminders } }))}>
+            <button type="button" onClick={() => {
+              const next = !state.settings.reminders;
+              if (next && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
+              mutate((current) => ({ ...current, settings: { ...current.settings, reminders: next } }));
+            }}>
               {state.settings.reminders ? "Reminders on" : "Reminders"}
             </button>
           </div>
