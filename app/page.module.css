@@ -67,7 +67,7 @@
 
 .superShell {
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   background:
     radial-gradient(circle at 18% 24%, rgb(255 205 132 / 34%), transparent 28%),
     radial-gradient(circle at 82% 16%, rgb(210 240 225 / 46%), transparent 28%),
@@ -654,6 +654,12 @@
     grid-template-columns: 1fr;
   }
 
+  .hero > .priorityShelf {
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+  }
+
   .heroStats {
     width: 100%;
   }
@@ -668,24 +674,63 @@
   .hero,
   .focusAlert,
   .productStage {
-    width: min(100vw - 24px, 1180px);
+    width: min(calc(100vw - 24px), 1180px);
   }
 
-  .superNav,
-  .hero {
-    grid-template-columns: 1fr;
+  .superNav {
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    gap: 12px;
+    padding: 14px 0;
+    min-height: unset;
   }
 
   .superLinks {
+    grid-column: 1 / -1;
     justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .superActions {
+    margin-left: auto;
   }
 
   .hero {
-    margin-top: 36px;
+    grid-template-columns: 1fr;
+    margin-top: 24px;
+    gap: 16px;
+  }
+
+  .hero > .priorityShelf {
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
   }
 
   .hero h1 {
-    font-size: 3.2rem;
+    font-size: clamp(1.5rem, 6vw, 2.2rem);
+  }
+
+  .heroControls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .heroControls input,
+  .heroControls button {
+    min-height: 40px;
+    font-size: 0.9rem;
+    padding: 0 12px;
+  }
+
+  .heroStats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .heroStats span {
+    min-height: 80px;
+    font-size: 1.4rem;
+    padding: 12px;
   }
 
   .messageRow {
@@ -704,5 +749,23 @@
 
   .focusAlert button {
     margin-left: 0;
+  }
+
+  .productStage {
+    gap: 14px;
+  }
+
+  .aiCard,
+  .mailCard,
+  .docCard {
+    border-radius: 18px;
+  }
+
+  .priorityBlock {
+    border-radius: 16px;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
   }
 }
