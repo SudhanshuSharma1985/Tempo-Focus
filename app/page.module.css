@@ -768,4 +768,34 @@
   .tabs {
     flex-wrap: wrap;
   }
+
+  .hero > .priorityShelf .priorityBlock {
+    border-color: rgb(39 31 22 / 14%);
+    background: #fffaf1;
+  }
+
+  .hero > .priorityShelf .blockHeader span {
+    color: #17130f;
+  }
+
+  .hero > .priorityShelf .blockHeader small {
+    color: #8a7e70;
+  }
+
+  .hero > .priorityShelf .priorityItem input[type="text"] {
+    border-color: #dfd3c0;
+    background: #ffffff;
+    color: #17130f;
+  }
+
+  .hero > .priorityShelf .priorityItem button {
+    background: #f0e7da;
+    color: #17130f;
+  }
+
+  .hero > .priorityShelf .inlineActions button {
+    border-color: #dfd3c0;
+    background: #f0e7da;
+    color: #17130f;
+  }
 }
