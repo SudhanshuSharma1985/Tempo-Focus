@@ -391,9 +391,22 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hourRefs = useRef<Record<string, HTMLElement | null>>({});
   const lastNotifiedRef = useRef<string>("");
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
+      // Try server first; fall back to localStorage
+      try {
+        const res = await fetch("/api/sync");
+        const json = await res.json();
+        if (json?.ok && json?.state) {
+          const serverState = sanitizeState(json.state);
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serverState));
+          setState(serverState);
+          setReady(true);
+          return;
+        }
+      } catch {}
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         setState(sanitizeState(raw ? JSON.parse(raw) : createDefaultState()));
@@ -410,6 +423,22 @@ export default function Home() {
 
   useEffect(() => {
     if (ready) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [ready, state]);
+
+  // Debounced server sync — saves 1.5s after the last state change
+  useEffect(() => {
+    if (!ready) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state),
+      }).catch(() => undefined);
+    }, 1500);
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
   }, [ready, state]);
 
   useEffect(() => {
